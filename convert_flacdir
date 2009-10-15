@@ -1,0 +1,18 @@
+#!/usr/bin/env zsh
+
+set -e
+
+REL_FLACDIR="$1"; shift
+REL_MP3DIR="$1"; shift
+
+PREFIX="$(cd "$(dirname $0)"; pwd)"
+
+FLACDIR="$(cd "$REL_FLACDIR"; pwd)"
+MP3DIR="$(cd "$REL_MP3DIR"; pwd)"
+
+cd "$FLACDIR"
+for flacfile in **/*.flac ; do
+    MP3FILE="$MP3DIR/$(dirname "$flacfile")/$(basename "$flacfile" .flac).mp3"
+    mkdir -p "$(dirname "$MP3FILE")"
+    "$PREFIX/flac2mp3.py" "$flacfile" "$MP3FILE"
+done
