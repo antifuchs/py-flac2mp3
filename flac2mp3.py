@@ -66,7 +66,10 @@ def encode_file(flac_name, mp3_name):
     flac.wait()
 
 def maybe_encode_file(flac_name, mp3_name):
+    print "Handling %s" % mp3_name
     if os.path.isfile(mp3_name):
+        if os.path.getmtime(mp3_name) >= os.path.getmtime(flac_name):
+            return
         # Need to check md5 to make sure they're the same:
         flac = FLAC(flac_name)
         mp3 = ID3(mp3_name)
@@ -100,7 +103,7 @@ def tag_sync(flac_name, mp3_name):
         frames_differ = False
         mp3_value = None
         flac_value = None
-
+        
         format, comparator, id3_generator = mp3_flac_dict[frame]
 
         try:
