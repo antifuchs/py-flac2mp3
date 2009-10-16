@@ -66,7 +66,6 @@ def encode_file(flac_name, mp3_name):
     flac.wait()
 
 def maybe_encode_file(flac_name, mp3_name):
-    print "Handling %s" % mp3_name
     if os.path.isfile(mp3_name):
         if os.path.getmtime(mp3_name) >= os.path.getmtime(flac_name):
             return
