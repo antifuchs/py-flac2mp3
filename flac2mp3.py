@@ -1,43 +1,49 @@
 #!/usr/bin/env python2.5
 
-from mutagen.id3 import ID3, ID3NoHeaderError, TALB, TPE1, TPE2, TBPM, COMM, TCMP, TCOM, TPE3, TDRC, TPOS, TCON, TSRC, TEXT, TPUB, TIT2, TRCK, UFID, TXXX, TSOP, TSO2, APIC
+from mutagen.id3 import ID3, ID3NoHeaderError, TALB, TPE1, TPE2, TBPM, COMM, TCMP, TCOM, TPE3, TDRC, TPOS, TCON, TSRC, TEXT, TPUB, TIT2, TRCK, UFID, TXXX, TSOP, TSO2, APIC, TSOT, TSOA
 from mutagen.flac import FLAC
 import string
 import sys
 import os.path
 from subprocess import Popen, PIPE
 
+def one_to_one_conversion(flac_frame_name, frame_class):
+    return (flac_frame_name, lambda mp3, flac: mp3.text[0] == flac, lambda str:[frame_class(encoding=3, text=str)])
+
+def one_to_one_conversion_txxx(flac_frame_name, desc):
+    return (flac_frame_name, lambda mp3, flac: mp3.text[0] == flac, lambda str:[TXXX(encoding=3, desc=desc, text=str)])
+
 mp3_flac_dict = {
-    'TALB': (u'$ALBUM', lambda mp3, flac: mp3.text[0] == flac, lambda str: [TALB(encoding=3, text=str)]),
-    'TPE1': (u'$ARTIST', lambda mp3, flac: mp3.text[0] == flac, lambda str: [TPE1(encoding=3, text=str)]),
-    'TPE2': (u'$BAND', lambda mp3, flac: mp3.text[0] == flac, lambda str: [TPE2(encoding=3, text=str)]),
-    'TBPM': (u'$BPM', lambda mp3, flac: mp3.text[0] == flac, lambda str: [TBPM(encoding=3, text=str)]),
-    'COMM': (u'$COMMENT', lambda mp3, flac: mp3.text[0] == flac, lambda str: [COMM(encoding=3, text=str)]),
-    'TCMP': (u'$COMPILATION', lambda mp3, flac: mp3.text[0] == flac, lambda str: [TCMP(encoding=3, text=str)]),
-    'TCOM': (u'$COMPOSER', lambda mp3, flac: mp3.text[0] == flac, lambda str: [TCOM(encoding=3, text=str)]),
-    'TPE3': (u'$CONDUCTOR', lambda mp3, flac: mp3.text[0] == flac, lambda str: [TPE3(encoding=3, text=str)]),
-    'TDRC': (u'$DATE', lambda mp3, flac: mp3.text[0].text == flac, lambda str: [TDRC(encoding=3, text=str)]),
-    'TPOS': (u'$DISCNUMBER/$TOTALDISCS', lambda mp3, flac: mp3.text[0] == flac, lambda str: [TPOS(encoding=3, text=str)]),
-    'TCON': (u'$GENRE', lambda mp3, flac: mp3.text[0] == flac, lambda str: [TCON(encoding=3, text=str)]),
-    'TSRC': (u'$ISRC', lambda mp3, flac: mp3.text[0] == flac, lambda str: [TSRC(encoding=3, text=str)]),
-    'TEXT': (u'$LYRICIST', lambda mp3, flac: mp3.text[0] == flac, lambda str: [TEXT(encoding=3, text=str)]),
-    'TPUB': (u'$PUBLISHER', lambda mp3, flac: mp3.text[0] == flac, lambda str: [TPUB(encoding=3, text=str)]),
-    'TIT2': (u'$TITLE', lambda mp3, flac: mp3.text[0] == flac, lambda str: [TIT2(encoding=3, text=str)]),
-    'TRCK': (u'$TRACKNUMBER/$TOTALTRACKS', lambda mp3, flac: mp3.text[0] == flac, lambda str: [TRCK(encoding=3, text=str)]),
-    'TSOP': (u'$ARTISTSORT', lambda mp3, flac: mp3.text[0] == flac, lambda str: [TSOP(encoding=3, text=str)]),
-    'TSO2': (u'$ALBUMARTISTSORT', lambda mp3, flac: mp3.text[0] == flac, lambda str: [TSO2(encoding=3, text=str)]),
-    'TSOT': (u'$TITLESORT', lambda mp3, flac: mp3.text[0] == flac, lambda str: [TSOT(encoding=3, text=str)]),
-    'TSOA': (u'$ALBUMSORT', lambda mp3, flac: mp3.text[0] == flac, lambda str: [TSOT(encoding=3, text=str)]),
+    'TDRC':                             (u'$DATE', lambda mp3, flac: mp3.text[0].text == flac, lambda str: [TDRC(encoding=3, text=str)]),
     'UFID:http://musicbrainz.org':      (u'$MUSICBRAINZ_TRACKID', lambda mp3, flac: mp3.data == flac, lambda str: [UFID(encoding=3, owner=u'http://musicbrainz.org', data=str)]),
-    'TXXX:MusicBrainz Album Id':        (u'$MUSICBRAINZ_ALBUMID', lambda mp3, flac: mp3.text[0] == flac, lambda str: [TXXX(encoding=3, desc=u'MusicBrainz Album Id', text=str)]),
-    'TXXX:MusicBrainz Album Status':    (u'$MUSICBRAINZ_ALBUMSTATUS', lambda mp3, flac: mp3.text[0] == flac, lambda str: [TXXX(encoding=3, desc=u'MusicBrainz Album Status', text=str)]),
-    'TXXX:MusicBrainz Album Artist Id': (u'$MUSICBRAINZ_ALBUMARTISTID', lambda mp3, flac: mp3.text[0] == flac, lambda str: [TXXX(encoding=3, desc=u'MusicBrainz Album Artist Id', text=str)]),
-    'TXXX:MusicBrainz Album Type':      (u'$MUSICBRAINZ_ALBUMTYPE', lambda mp3, flac: mp3.text[0] == flac, lambda str: [TXXX(encoding=3, desc=u'MusicBrainz Album Type', text=str)]),
-    'TXXX:MusicBrainz Artist Id':       (u'$MUSICBRAINZ_ARTISTID', lambda mp3, flac: mp3.text[0] == flac, lambda str: [TXXX(encoding=3, desc=u'MusicBrainz Artist Id', text=str)]),
-    'TXXX:MusicBrainz Sortname':        (u'$MUSICBRAINZ_SORTNAME', lambda mp3, flac: mp3.text[0] == flac, lambda str: [TXXX(encoding=3, desc=u'MusicBrainz Sortname', text=str)]),
-    'TXXX:MusicBrainz TRM Id': 	        (u'$MUSICBRAINZ_TRMID', lambda mp3, flac: mp3.text[0] == flac, lambda str: [TXXX(encoding=3, desc=u'MusicBrainz TRM Id', text=str)]),
-    'TXXX:MD5': 		                (u'$MD5', lambda mp3, flac: mp3.text[0] == flac, lambda str: [TXXX(encoding=3, desc=u'MD5', text=str)]),
-    'TXXX:ALBUMARTISTSORT':             (u'$ALBUMARTISTSORT', lambda mp3, flac: mp3.text[0] == flac, lambda str: [TXXX(encoding=3, desc=u'ALBUMARTISTSORT', text=str)]),
+    'TALB':                             one_to_one_conversion(u'$ALBUM', TALB),
+    'TPE1':                             one_to_one_conversion(u'$ARTIST', TPE1),
+    'TPE2':                             one_to_one_conversion(u'$BAND', TPE2),
+    'TBPM':                             one_to_one_conversion(u'$BPM', TBPM),
+    'COMM':                             one_to_one_conversion(u'$COMMENT', COMM),
+    'TCMP':                             one_to_one_conversion(u'$COMPILATION', TCMP),
+    'TCOM':                             one_to_one_conversion(u'$COMPOSER', TCOM),
+    'TPE3':                             one_to_one_conversion(u'$CONDUCTOR', TPE3),
+    'TPOS':                             one_to_one_conversion(u'$DISCNUMBER/$TOTALDISCS', TPOS),
+    'TCON':                             one_to_one_conversion(u'$GENRE', TCON),
+    'TSRC':                             one_to_one_conversion(u'$ISRC', TSRC),
+    'TEXT':                             one_to_one_conversion(u'$LYRICIST', TEXT),
+    'TPUB':                             one_to_one_conversion(u'$PUBLISHER', TPUB),
+    'TIT2':                             one_to_one_conversion(u'$TITLE', TIT2),
+    'TRCK':                             one_to_one_conversion(u'$TRACKNUMBER/$TOTALTRACKS', TRCK),
+    'TSOP':                             one_to_one_conversion(u'$ARTISTSORT', TSOP),
+    'TSO2':                             one_to_one_conversion(u'$ALBUMARTISTSORT', TSO2),
+    'TSOT':                             one_to_one_conversion(u'$TITLESORT', TSOT),
+    'TSOA':                             one_to_one_conversion(u'$ALBUMSORT', TSOA),
+    'TXXX:MusicBrainz Album Id':        one_to_one_conversion_txxx(u'$MUSICBRAINZ_ALBUMID', 'MusicBrainz Album Id'),
+    'TXXX:MusicBrainz Album Status':    one_to_one_conversion_txxx(u'$MUSICBRAINZ_ALBUMSTATUS', 'MusicBrainz Album Status'),
+    'TXXX:MusicBrainz Album Artist Id': one_to_one_conversion_txxx(u'$MUSICBRAINZ_ALBUMARTISTID', 'MusicBrainz Album Artist Id'),
+    'TXXX:MusicBrainz Album Type':      one_to_one_conversion_txxx(u'$MUSICBRAINZ_ALBUMTYPE', 'MusicBrainz Album Type'),
+    'TXXX:MusicBrainz Artist Id':       one_to_one_conversion_txxx(u'$MUSICBRAINZ_ARTISTID', 'MusicBrainz Artist Id'),
+    'TXXX:MusicBrainz Sortname':        one_to_one_conversion_txxx(u'$MUSICBRAINZ_SORTNAME', 'MusicBrainz Sortname'),
+    'TXXX:MusicBrainz TRM Id': 	        one_to_one_conversion_txxx(u'$MUSICBRAINZ_TRMID', 'MusicBrainz TRM Id'),
+    'TXXX:MD5': 		                one_to_one_conversion_txxx(u'$MD5', 'MD5'),
+    'TXXX:ALBUMARTISTSORT':             one_to_one_conversion_txxx(u'$ALBUMARTISTSORT', 'ALBUMARTISTSORT'),
 }
 
 def flac_tag_dict(flac):
