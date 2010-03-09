@@ -46,6 +46,8 @@ mp3_flac_dict = {
     'TXXX:ALBUMARTISTSORT':             one_to_one_conversion_txxx(u'$ALBUMARTISTSORT', 'ALBUMARTISTSORT'),
 }
 
+status_printed=False
+
 def flac_tag_dict(flac):
 	ret = {}
 	for key in flac.tags.as_dict().keys():
@@ -69,6 +71,16 @@ def encode_file(flac_name, mp3_name):
     lame.wait()
     flac.wait()
 
+def print_status(file_name, pos, status):
+    global status_printed
+    if not status_printed:
+        print file_name
+        for i in range(pos):
+            sys.stdout.write(" ")
+        status_printed = True
+    sys.stdout.write(status)
+    sys.stdout.flush
+    
 def maybe_encode_file(flac_name, mp3_name):
     if os.path.isfile(mp3_name):
         if os.path.getmtime(mp3_name) >= os.path.getmtime(flac_name):
@@ -82,13 +94,13 @@ def maybe_encode_file(flac_name, mp3_name):
                     mp3_sig = mp3['TXXX:MD5'].text[0]
                 except KeyError:
                     mp3_sig = 'None'
-                print "Need to re-encode %s: flac:%x vs mp3:%s" % (mp3_name, flac.info.md5_signature, mp3_sig)
+                print_status(mp3_name, 0, "R")
                 encode_file(flac_name, mp3_name)
         except ID3NoHeaderError:
-            print "Need to re-encode %s (invalid ID3 tag)!" % mp3_name
+            print_status(mp3_name, 0, "I")
             encode_file(flac_name, mp3_name)
     else:
-        print "Encoding %s" % mp3_name
+        print_status(mp3_name, 0, "E")
         encode_file(flac_name, mp3_name)
     tag_sync(flac_name, mp3_name)
 
@@ -98,6 +110,7 @@ def tag_sync(flac_name, mp3_name):
 
     flactags = flac_tag_dict(flac)
     tag_differences = {}
+    tag_index = 1
 
     # First, check whether the tags that can easily be translated match:
     for frame in mp3_flac_dict.keys():
@@ -123,10 +136,15 @@ def tag_sync(flac_name, mp3_name):
             frames_differ = not comparator(mp3_value, flac_value)
 
         if (flac_has_frame and not mp3_has_frame) or frames_differ:
-            # print "%s differs: %s <> %s" % (frame, mp3_value, flac_value)
+            #print "%s differs: %s <> %s" % (frame, mp3_value, flac_value)
             tag_differences[frame] = id3_generator(flac_value)
+            print_status(mp3_name, tag_index, ".")
         elif not flac_has_frame and mp3_has_frame:
             tag_differences[frame] = None
+            print_status(mp3_name, tag_index, "X")
+        else:
+            print_status(mp3_name, tag_index, " ")
+        tag_index += 1
 
     # Now, check pictures:
     for picture in flac.pictures:
@@ -139,16 +157,16 @@ def tag_sync(flac_name, mp3_name):
             if not tag_differences.has_key('APIC:'):
                 tag_differences['APIC:'] = []
             tag_differences['APIC:'].append(APIC(encoding=3, desc=u'', type=picture.type, data=picture.data, mime=picture.mime))
-
+            print_status(mp3_name, tag_index, "P")
+    print ""
     # And now push the changed tags to the MP3.
     for frame in tag_differences.keys():    
         if tag_differences[frame] == None:
             mp3.delall(frame)
         else:
-    		mp3.setall(frame, tag_differences[frame])
+            mp3.setall(frame, tag_differences[frame])
 
     if len(tag_differences.keys()) > 0:
-        print "Updating tags in %s: %s" % (mp3_name, tag_differences.keys())
         mp3.save(mp3_name, v1=1)
 
 maybe_encode_file(sys.argv[1], sys.argv[2])
