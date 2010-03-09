@@ -51,6 +51,10 @@ def flac_tag_dict(flac):
 	for key in flac.tags.as_dict().keys():
 		ret[key.upper()] = flac.tags[key][0]
 	ret['MD5'] = ('%x' % flac.info.md5_signature)
+	if ret.has_key('TRACKTOTAL'):
+	    ret['TOTALTRACKS'] = ret['TRACKTOTAL']
+	if ret.has_key('DISCTOTAL'):
+	    ret['TOTALDISCS'] = ret['DISCTOTAL']
 	if not ret.has_key('TOTALTRACKS'):
 	    ret['TOTALTRACKS'] = ''
 	if not ret.has_key('TOTALDISCS'):
