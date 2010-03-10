@@ -14,5 +14,8 @@ cd "$FLACDIR"
 for flacfile in **/*.flac ; do
     MP3FILE="$MP3DIR/$(dirname "$flacfile")/$(basename "$flacfile" .flac).mp3"
     mkdir -p "$(dirname "$MP3FILE")"
-    "$PREFIX/flac2mp3.py" "$flacfile" "$MP3FILE"
+    if ! "$PREFIX/flac2mp3.py" "$flacfile" "$MP3FILE" ; then
+	echo "Couldn't convert $flacfile"
+	exit 1
+    fi
 done
