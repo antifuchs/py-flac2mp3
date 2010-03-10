@@ -168,5 +168,7 @@ def tag_sync(flac_name, mp3_name):
 
     if len(tag_differences.keys()) > 0:
         mp3.save(mp3_name, v1=1)
+    else:
+        os.utime(mp3_name, None)
 
 maybe_encode_file(sys.argv[1], sys.argv[2])
